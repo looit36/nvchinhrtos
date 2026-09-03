@@ -1,0 +1,100 @@
+--- PAGE 1 ---
+￭Independent Output Interface: I2C, SSI, ABZ，
+UVW, Analog/PWM and Push-Button Function on Z-Axis
+￭Incremental ABZ Resolution 1~1024 Pulses
+￭UVW Output Resolution 1~16 Pole-Pairs
+The incremental ABZ output mode is available
+--- PAGE 2 ---
+1 Pin Configuration …………………………..…………………..… …………………………..……….……. 3
+6.1 I/O Pin Configuration……..…………….…….…………………...………………………..…………….… 9
+6.2 Reference Circuit for ABZ/UVW/PWM/Analog Output….………………….…………….. .10
+6.3 Quadrature A,B and Zero-Position Output Signal (ABZ Mode)………….…..…… ...11
+6.4 UVW Output Mode………………………. ………………………...………………………..……..….15
+--- PAGE 3 ---
+1.    Pin Configuration
+Figure 1: Pin Configuration for SOP-8 Package
+MODE 2Digital Input with Build in
+200KΩ Pull-up ResistorABZ or I2C/SSI Selection
+MT6701CT-STD SOP-8 Package, Tube P ack (100pcs/Tube) or Tape & Re el Pack (3000pcs/Reel)Family MembersPin List
+--- PAGE 4 ---
+Figure 2: Pin Configuration for QFN-16 Package
+MODE 14Digital Input with Build in 200KΩ
+Pull-up ResistorABZ or I
+MT6701QT-STD QFN-16 Package, Reel Pack (1000pcs/Reel)Family MembersPin List
+--- PAGE 5 ---
+DC Voltage at Pin VDD -0.5 7 V
+UVW/
+MODEM
+SSIABZ
+--- PAGE 6 ---
+LSB Resolution (ABZ Mode) N Steps per Cycle 360°/N - °
+(ABZ Mode), Figure 4- ±0.02 - °
+TN Transition Noise  (ABZ Mode) 25℃ - 0.01 °rms
+Hyst Hysteresis (ABZ Mode) - 0.088 - °
+--- PAGE 9 ---
+The MT6701 provides ABZ, UVW, Analog and PWM at output pins, also angle posi tion data
+6.1  I/O Pin Configuration
+Pin# I2C SSI ABZ UVW PWM Analog Push
+8 CSN Z WSOP-8 Package I/O Pin ConfigurationFor SOP-8 package, ABZ/UVW (Single-end), I2C and SSI are configured to Pin.6, Pin.7 and
+Pin.8. Analog and PWM output is configured to Pin.3.
+Pin# I2C SSI ABZ ABZ+UVW ABZ Differential PWM Analog Push
+15 PWM AnalogQFN-16 Package I/O Pin ConfigurationFor QFN-16 package, ABZ (Single-end), I2C and SSI are configured to Pin.6, Pin.7 and Pin.8.
+UVW and –A-B-Z are configured to Pin.11, Pin.12 and Pin.9. Analog and PWM ou tput is
+configured to Pin.15.
+--- PAGE 10 ---
+106.2  Reference Circuit for ABZ/UVW/PWM/Analog/Push Output
+Figure 6:  MT6701CT(SOP-8) Referen ce Circuit for ABZ/UVW/PWM/An alog/Push Output
+Figure 7:  MT6701QT(QFN-16) Refere nce Circuit for ABZ/UVW/PWM/A nalog/Push Output11
+--- PAGE 11 ---
+After chip power-on, the ABZ output is blocked for 50ms to guarantee proper output.
+Figure 8: ABZ output with VDD Power-onA
+--- PAGE 12 ---
+Figure 9: Typical ABZ Output w/i Z Pules Width=1,2,4,8,12 and 1 6 LSBs
+Figure 10: Typical ABZ Output w/i Z pules width=180°
+--- PAGE 13 ---
+1 999 1000ABZ resolution is user programmable as 1~1024 PPR any resolution. The rela tionship
+between binary bits, LSBs and PPR resolution of ABZ output are shown in Figu re 11 and
+Figure 12: ABZ Output Resolution=1000 PPRFigure 11: ABZ Output Resolution=10 bit
+--- PAGE 14 ---
+ABZ Resolution Register (EEPROM)The mechanical zero position could be programmed, it is a 12 bits data for 0~ 360°.
+ABZ_RES UVW_RES<3:0> NA NA ABZ_RES<9:8>
+ABZ_RES ABZ_RES<7:0>The resolution of ABZ could be programmed by a 10-bit register ‘ABZ_RES’
+--- PAGE 15 ---
+156.4 UVW Output Mode
+Figure 13. The cycles of UVW per rotation can be programmed.
+UVW Pole Pairs Register (EEPROM)Figure 13: Typical Output Waveform for UVW Mode
+Reg. UVW_RES<3:0> UVW Pole Pairs
+--- PAGE 16 ---
+Reg. Output Mode Pin.3 (SOP-8), Pin.15 (QFN-16)
+--- PAGE 26 ---
+0x25 UVW_MUX
+0x29 ABZ_MUX DIR
+0x30 UVW_RES[3:0] ABZ_RES[9:8]
+0x31 ABZ_RES[7:0]
+0x38 PWM_FREQ PWM_POL OUT_MODE
+*UVW_MUX (Address 0x25[7])
+UVW_MUX register contains the configuration data of UVW output type.
+UVW_MUX UVW Output Type(Only for QFN Package)
+0x0 UVW
+*ABZ_MUX (Address 0x29[6])
+ABZ_MUX register contains data of ABZ output type.
+ABZ_MUX ABZ Output Type
+0x0 ABZ
+0x1 UVW
+--- PAGE 27 ---
+27*UVW_RES[3:0] (Address 0x30[7:4])
+UVW_RES register contains the configuration data of UVW output resolutio n (Pole-Paris).
+0x7 1Reg. UVW_RES<3:0> UVW Output Pole Pairs
+*ABZ_RES[9:0] (Address 0x30[1:0] & 0x31[7:0])
+ABZ_RES register contains the configuration data of ABZ output resolutio n (PPR).
+Reg. ABZ_RES<9:0> ABZ Resolution (Pulse per Round)
+--- PAGE 29 ---
+29*OUT_MODE(Address 0x38[5])
+OUT_MODE register contains the configuration data of ‘Out’ Pin Mode
+OUT_MODE ‘Out’ Pin Mode
+--- PAGE 30 ---
+0x25 UVW_MUX
+0x29 ABZ_MUX DIR
+0x30 UVW_RES[3:0] ABZ_RES[9:8]
+0x31 ABZ_RES[7:0]
+0x38 PWM_FREQ PWM_POL OUT_MODE

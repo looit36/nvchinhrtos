@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kerise Maze Designer</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
+
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --primary: #06b6d4;
+            --primary-glow: rgba(6, 182, 212, 0.5);
+            --secondary: #f43f5e;
+            --wall-color: #334155;
+            --wall-active: #06b6d4;
+            --text-color: #f8fafc;
+            --grid-size: 16;
+            --cell-size: 35px;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(circle at center, #1e293b 0%, var(--bg-color) 100%);
+            color: var(--text-color);
+            font-family: 'Outfit', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            width: 100%;
+            padding: 20px 0;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            margin: 0;
+            font-weight: 800;
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(6, 182, 212, 0.3);
+        }
+
+        .container {
+            display: flex;
+            gap: 40px;
+            max-width: 1200px;
+            width: 100%;
+            padding: 0 20px;
+            box-sizing: border-box;
+            justify-content: center;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .controls {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 400px;
+        }
+
+        .maze-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background: #020617;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.8);
+        }
+
+        .maze-grid {
+            display: grid;
+            grid-template-columns: repeat(var(--grid-size), var(--cell-size));
+            grid-template-rows: repeat(var(--grid-size), var(--cell-size));
+            gap: 0;
+            position: relative;
+        }
+
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        /* Wall clicking areas */
+        .wall {
+            position: absolute;
+            background: var(--wall-color);
+            transition: all 0.2s ease;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .wall:hover {
+            background: #64748b;
+        }
+
+        .wall.active {
+            background: var(--wall-active);
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .wall.n { top: -2px; left: -2px; right: -2px; height: 5px; }
+        .wall.s { bottom: -2px; left: -2px; right: -2px; height: 5px; }
+        .wall.e { top: -2px; bottom: -2px; right: -2px; width: 5px; }
+        .wall.w { top: -2px; bottom: -2px; left: -2px; width: 5px; }
+
+        .cell-content {
+            position: absolute;
+            top: 4px; left: 4px; right: 4px; bottom: 4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.3);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .cell.start .cell-content {
+            background: rgba(34, 197, 94, 0.2);
+            border-radius: 4px;
+            color: #22c55e;
+            font-weight: bold;
+        }
+
+        .cell.goal .cell-content {
+            background: rgba(244, 63, 94, 0.2);
+            border-radius: 4px;
+            color: #f43f5e;
+            font-weight: bold;
+        }
+
+        h2 { margin-top: 0; font-size: 1.5rem; color: var(--primary); }
+
+        button {
+            background: linear-gradient(135deg, var(--primary), #3b82f6);
+            border: none;
+            color: white;
+            padding: 15px 20px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Outfit', sans-serif;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(6, 182, 212, 0.3);
+        }
+
+        button:active { transform: translateY(0); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        button.secondary { background: linear-gradient(135deg, #8b5cf6, #6366f1); }
+        button.danger { background: linear-gradient(135deg, var(--secondary), #e11d48); }
+
+        .output-box {
+            background: #020617;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            font-family: monospace;
+            color: #22c55e;
+            min-height: 80px;
+            word-wrap: break-word;
+            font-size: 1.1rem;
+            overflow-y: auto;
+            max-height: 150px;
+        }
+
+        .status { margin-top: 10px; font-size: 0.9rem; color: #94a3b8; }
+
+        .form-group { display: flex; flex-direction: column; gap: 8px; }
+        .form-group label { font-size: 0.9rem; color: #cbd5e1; }
+        .form-row { display: flex; gap: 10px; }
+        input[type="number"] {
+            background: #0f172a; border: 1px solid rgba(255,255,255,0.2);
+            color: white; padding: 10px; border-radius: 8px; font-family: 'Outfit';
+            width: 100%; box-sizing: border-box;
+        }
+
+        .path-svg {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+        
+        .tip {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            font-style: italic;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Kerise Maze Designer</h1>
+        <p>Design your physical maze and generate optimal Kerise fast-run strings</p>
+    </header>
+
+    <div class="container">
+        <!-- Maze Grid -->
+        <div class="panel">
+            <div class="maze-container">
+                <div class="maze-grid" id="mazeGrid">
+                    <!-- SVG for drawing continuous path line -->
+                    <svg class="path-svg" id="pathSvg"></svg>
+                </div>
+            </div>
+            <p class="tip" style="text-align: center; margin-top: 15px;">Click on the grid lines to toggle walls. Start is (0,0) at bottom-left.</p>
+        </div>
+
+        <!-- Controls -->
+        <div class="panel controls">
+            <h2>Configuration</h2>
+            
+            <div class="form-row">
+                <div class="form-group" style="flex:1">
+                    <label>Start X, Y</label>
+                    <div class="form-row">
+                        <input type="number" id="startX" value="0" min="0" max="15">
+                        <input type="number" id="startY" value="0" min="0" max="15">
+                    </div>
+                </div>
+                <div class="form-group" style="flex:1">
+                    <label>Goal X, Y</label>
+                    <div class="form-row">
+                        <input type="number" id="goalX" value="7" min="0" max="15">
+                        <input type="number" id="goalY" value="7" min="0" max="15">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <button onclick="clearMaze()" class="danger" style="flex:1">Clear</button>
+                <button onclick="solveMaze()" style="flex:2">Solve Maze</button>
+            </div>
+
+            <h2 style="margin-top: 10px;">Execution</h2>
+            <div class="output-box" id="pathOutput">Path string will appear here...</div>
+            <div class="status" id="pathDetails">Distance: 0 cells</div>
+
+            <div class="form-row" style="margin-top: auto;">
+                <button onclick="connectBluetooth()" class="secondary" id="btnConnect" style="flex:1">Connect Robot</button>
+                <button onclick="sendPath()" id="btnSend" style="flex:2" disabled>Transmit (X...)</button>
+            </div>
+            <div class="status" id="btStatus">Disconnected</div>
+        </div>
+    </div>
+
+    <script>
+        const GRID_SIZE = 16;
+        const CELL_SIZE = 35; // Matches CSS
+        const gridEl = document.getElementById('mazeGrid');
+        const svgEl = document.getElementById('pathSvg');
+        
+        let startPos = {x: 0, y: 0};
+        let goalPos = {x: 7, y: 7};
+        let generatedPath = "";
+        
+        // Wall state: walls[x][y] = {n, e, s, w}
+        let walls = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill().map(() => ({
+            n: false, e: false, s: false, w: false
+        })));
+
+        // Outer boundaries
+        for(let i=0; i<GRID_SIZE; i++) {
+            walls[i][0].s = true;
+            walls[i][GRID_SIZE-1].n = true;
+            walls[0][i].w = true;
+            walls[GRID_SIZE-1][i].e = true;
+        }
+
+        // Initialize Grid UI
+        function initGrid() {
+            gridEl.innerHTML = '';
+            gridEl.appendChild(svgEl);
+
+            for (let y = GRID_SIZE - 1; y >= 0; y--) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.id = `cell-${x}-${y}`;
+
+                    // Add wall clickers
+                    ['n', 'e', 's', 'w'].forEach(dir => {
+                        const wall = document.createElement('div');
+                        wall.className = `wall ${dir}`;
+                        if (walls[x][y][dir]) wall.classList.add('active');
+                        
+                        wall.addEventListener('click', () => toggleWall(x, y, dir));
+                        cell.appendChild(wall);
+                    });
+
+                    // Add content
+                    const content = document.createElement('div');
+                    content.className = 'cell-content';
+                    content.id = `content-${x}-${y}`;
+                    cell.appendChild(content);
+
+                    gridEl.appendChild(cell);
+                }
+            }
+            updateStartGoalUI();
+        }
+
+        function toggleWall(x, y, dir) {
+            // Prevent toggling outer boundaries
+            if (dir === 's' && y === 0) return;
+            if (dir === 'n' && y === GRID_SIZE-1) return;
+            if (dir === 'w' && x === 0) return;
+            if (dir === 'e' && x === GRID_SIZE-1) return;
+
+            const state = !walls[x][y][dir];
+            walls[x][y][dir] = state;
+
+            // Update UI for current cell
+            document.querySelector(`#cell-${x}-${y} .wall.${dir}`).classList.toggle('active', state);
+
+            // Sync neighbor
+            let nx = x, ny = y, ndir = '';
+            if (dir === 'n') { ny = y + 1; ndir = 's'; }
+            if (dir === 's') { ny = y - 1; ndir = 'n'; }
+            if (dir === 'e') { nx = x + 1; ndir = 'w'; }
+            if (dir === 'w') { nx = x - 1; ndir = 'e'; }
+
+            if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE) {
+                walls[nx][ny][ndir] = state;
+                document.querySelector(`#cell-${nx}-${ny} .wall.${ndir}`).classList.toggle('active', state);
+            }
+            
+            // clear path
+            svgEl.innerHTML = '';
+            document.getElementById('pathOutput').innerText = 'Path string will appear here...';
+            document.getElementById('btnSend').disabled = true;
+        }
+
+        function clearMaze() {
+            for(let x=0; x<GRID_SIZE; x++) {
+                for(let y=0; y<GRID_SIZE; y++) {
+                    walls[x][y] = {n: false, e: false, s: false, w: false};
+                    if(y===0) walls[x][y].s = true;
+                    if(y===GRID_SIZE-1) walls[x][y].n = true;
+                    if(x===0) walls[x][y].w = true;
+                    if(x===GRID_SIZE-1) walls[x][y].e = true;
+
+                    ['n','e','s','w'].forEach(d => {
+                        const el = document.querySelector(`#cell-${x}-${y} .wall.${d}`);
+                        if(el) el.classList.toggle('active', walls[x][y][d]);
+                    });
+                }
+            }
+            svgEl.innerHTML = '';
+            document.getElementById('pathOutput').innerText = 'Path string will appear here...';
+            generatedPath = "";
+            document.getElementById('btnSend').disabled = true;
+        }
+
+        function updateStartGoalUI() {
+            document.querySelectorAll('.cell').forEach(c => {
+                c.classList.remove('start', 'goal');
+                c.querySelector('.cell-content').innerHTML = '';
+            });
+            
+            let sx = parseInt(document.getElementById('startX').value);
+            startPos.x = isNaN(sx) ? 0 : sx;
+            let sy = parseInt(document.getElementById('startY').value);
+            startPos.y = isNaN(sy) ? 0 : sy;
+            
+            let gx = parseInt(document.getElementById('goalX').value);
+            goalPos.x = isNaN(gx) ? 7 : gx;
+            let gy = parseInt(document.getElementById('goalY').value);
+            goalPos.y = isNaN(gy) ? 7 : gy;
+
+            const startCell = document.getElementById(`cell-${startPos.x}-${startPos.y}`);
+            if(startCell) {
+                startCell.classList.add('start');
+                startCell.querySelector('.cell-content').innerText = 'S';
+            }
+
+            const goalCell = document.getElementById(`cell-${goalPos.x}-${goalPos.y}`);
+            if(goalCell) {
+                goalCell.classList.add('goal');
+                goalCell.querySelector('.cell-content').innerText = 'G';
+            }
+        }
+
+        ['startX', 'startY', 'goalX', 'goalY'].forEach(id => {
+            document.getElementById(id).addEventListener('change', updateStartGoalUI);
+        });
+
+        // BFS to find shortest path
+        function solveMaze() {
+            updateStartGoalUI();
+            
+            // Queue format: {x, y, path: [directions]}
+            // 0: North, 1: East, 2: South, 3: West
+            const q = [{x: startPos.x, y: startPos.y, path: []}];
+            const visited = new Set();
+            visited.add(`${startPos.x},${startPos.y}`);
+
+            let foundNode = null;
+
+            while(q.length > 0) {
+                const curr = q.shift();
+                
+                if (curr.x === goalPos.x && curr.y === goalPos.y) {
+                    foundNode = curr;
+                    break;
+                }
+
+                const w = walls[curr.x][curr.y];
+                
+                // Try North (0)
+                if (!w.n && curr.y < GRID_SIZE-1 && !visited.has(`${curr.x},${curr.y+1}`)) {
+                    visited.add(`${curr.x},${curr.y+1}`);
+                    q.push({x: curr.x, y: curr.y+1, path: [...curr.path, 0]});
+                }
+                // Try East (1)
+                if (!w.e && curr.x < GRID_SIZE-1 && !visited.has(`${curr.x+1},${curr.y}`)) {
+                    visited.add(`${curr.x+1},${curr.y}`);
+                    q.push({x: curr.x+1, y: curr.y, path: [...curr.path, 1]});
+                }
+                // Try South (2)
+                if (!w.s && curr.y > 0 && !visited.has(`${curr.x},${curr.y-1}`)) {
+                    visited.add(`${curr.x},${curr.y-1}`);
+                    q.push({x: curr.x, y: curr.y-1, path: [...curr.path, 2]});
+                }
+                // Try West (3)
+                if (!w.w && curr.x > 0 && !visited.has(`${curr.x-1},${curr.y}`)) {
+                    visited.add(`${curr.x-1},${curr.y}`);
+                    q.push({x: curr.x-1, y: curr.y, path: [...curr.path, 3]});
+                }
+            }
+
+            if (!foundNode) {
+                document.getElementById('pathOutput').innerText = 'NO PATH FOUND! Check if goal is reachable.';
+                document.getElementById('pathOutput').style.color = '#ef4444';
+                svgEl.innerHTML = '';
+                return;
+            }
+
+            drawPath(foundNode.path);
+            generateKeriseString(foundNode.path);
+        }
+
+        function drawPath(pathDirs) {
+            svgEl.innerHTML = '';
+            let cx = startPos.x;
+            let cy = startPos.y;
+            
+            const getSvgCoord = (x, y) => ({
+                px: x * CELL_SIZE + CELL_SIZE/2,
+                py: (GRID_SIZE - 1 - y) * CELL_SIZE + CELL_SIZE/2
+            });
+
+            let d = `M ${getSvgCoord(cx, cy).px} ${getSvgCoord(cx, cy).py} `;
+
+            pathDirs.forEach(dir => {
+                if(dir === 0) cy++;
+                else if(dir === 1) cx++;
+                else if(dir === 2) cy--;
+                else if(dir === 3) cx--;
+                const pt = getSvgCoord(cx, cy);
+                d += `L ${pt.px} ${pt.py} `;
+            });
+
+            const pathNode = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            pathNode.setAttribute("d", d);
+            pathNode.setAttribute("stroke", "#eab308");
+            pathNode.setAttribute("stroke-width", "4");
+            pathNode.setAttribute("fill", "none");
+            pathNode.setAttribute("stroke-linecap", "round");
+            pathNode.setAttribute("stroke-linejoin", "round");
+            svgEl.appendChild(pathNode);
+        }
+
+        function generateKeriseString(pathDirs) {
+            let robotDir = 0; // Starts facing North
+            // KeriseStr string generation logic here is kept for visual
+            let keriseStr = "";
+            for(let i=0; i<pathDirs.length; i++) {
+                const targetDir = pathDirs[i];
+                let diff = (targetDir - robotDir + 4) % 4;
+
+                if (diff === 0) {
+                    keriseStr += "S";
+                } else if (diff === 1) {
+                    keriseStr += "R";
+                } else if (diff === 3) {
+                    keriseStr += "L";
+                } else if (diff === 2) {
+                    keriseStr += "R";
+                    keriseStr += "R";
+                }
+                robotDir = targetDir;
+            }
+            keriseStr += "S";
+
+            generatedPath = "X" + keriseStr;
+            
+            // Generate Hex Map Data string "MAP:X Y X Y ..." (StartX, StartY, GoalX, GoalY)
+            let mapHex = "MAP:";
+            mapHex += startPos.x.toString(16).toUpperCase();
+            mapHex += startPos.y.toString(16).toUpperCase();
+            mapHex += goalPos.x.toString(16).toUpperCase();
+            mapHex += goalPos.y.toString(16).toUpperCase();
+            
+            // Each cell: Bit 0: East, Bit 1: North, Bit 2: West, Bit 3: South
+            for (let x = 0; x < GRID_SIZE; x++) {
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    let cellVal = 0;
+                    if (walls[x][y].e) cellVal |= 1;
+                    if (walls[x][y].n) cellVal |= 2;
+                    if (walls[x][y].w) cellVal |= 4;
+                    if (walls[x][y].s) cellVal |= 8;
+                    mapHex += cellVal.toString(16).toUpperCase();
+                }
+            }
+            
+            // Set the Map Hex as the primary path to transmit
+            generatedPath = mapHex;
+            
+            const out = document.getElementById('pathOutput');
+            out.innerText = generatedPath;
+            out.style.color = '#22c55e';
+            
+            document.getElementById('pathDetails').innerText = `Path Length: ${pathDirs.length}. Transmitting MAP Data to Robot!`;
+            document.getElementById('btnSend').disabled = false;
+        }
+
+        // Bluetooth / Web Serial API
+        let port;
+        let writer;
+
+        async function connectBluetooth() {
+            try {
+                port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 115200 }); 
+                const textEncoder = new TextEncoderStream();
+                const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
+                writer = textEncoder.writable.getWriter();
+                
+                document.getElementById('btStatus').innerText = "Connected to Robot!";
+                document.getElementById('btStatus').style.color = "#22c55e";
+                document.getElementById('btnConnect').innerText = "Connected";
+                document.getElementById('btnConnect').style.background = "linear-gradient(135deg, #10b981, #059669)";
+            } catch (err) {
+                console.error('Connection error:', err);
+                document.getElementById('btStatus').innerText = "Connection failed: " + err.message;
+                document.getElementById('btStatus').style.color = "#f43f5e";
+            }
+        }
+
+        async function sendPath() {
+            if (!writer) {
+                alert("Please connect to the robot first!");
+                return;
+            }
+            if (!generatedPath) return;
+
+            try {
+                await writer.write(generatedPath + '\n');
+                document.getElementById('btStatus').innerText = "Path transmitted successfully!";
+                document.getElementById('btStatus').style.color = "#06b6d4";
+                setTimeout(() => {
+                    document.getElementById('btStatus').innerText = "Connected to Robot!";
+                    document.getElementById('btStatus').style.color = "#22c55e";
+                }, 2000);
+            } catch (err) {
+                console.error("Write error:", err);
+                document.getElementById('btStatus').innerText = "Transmission failed!";
+                document.getElementById('btStatus').style.color = "#f43f5e";
+            }
+        }
+
+        initGrid();
+
+    </script>
+</body>
+</html>
