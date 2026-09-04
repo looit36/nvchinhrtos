@@ -38,8 +38,8 @@ class Motor {
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
     uint32_t timer_clk = HAL_RCC_GetSysClockFreq(); // 100MHz trên STM32F411
-    uint32_t period = (timer_clk / 100000);         // 1000 cho 100kHz PWM
-    if (period < 10) period = 1000;
+    uint32_t period = (timer_clk / 25000);         // 4000 cho 25kHz PWM (Chuẩn tần số DRV8833, êm ái và mô-men lớn)
+    if (period < 10) period = 4000;
 
     TIM4->CR1 = 0;
     TIM4->CR2 = 0;
@@ -83,6 +83,14 @@ class Motor {
     TIM4->CCR4 = 0;
   }
 
+  void brake() {
+    uint32_t full = TIM4->ARR + 1;
+    TIM4->CCR1 = full;
+    TIM4->CCR2 = full;
+    TIM4->CCR3 = full;
+    TIM4->CCR4 = full;
+  }
+
   void emergency_stop(float vL = 0, float vR = 0) {
     emergency = true;
     LOGE(">>> MOTOR EMERGENCY STOP (L=%.2f, R=%.2f) <<<", (double)vL, (double)vR);
@@ -107,13 +115,17 @@ class Motor {
       return;
     }
     float abs_d = std::clamp(std::abs(duty), (float)MOT_DUTY_MIN / 1000.0f, (float)MOT_DUTY_MAX / 1000.0f);
-    uint32_t pulse = (uint32_t)((TIM4->ARR + 1) * abs_d);
+    uint32_t pulse_inv = (uint32_t)((TIM4->ARR + 1) * (1.0f - abs_d));
+    uint32_t pulse_full = TIM4->ARR + 1;
+
+    // Chế độ Slow Decay (Brake Mode chuẩn Kerise): Giữ 1 chân HIGH, chân còn lại băm PWM đảo
+    // Giúp motor có lực kéo cực mạnh ở PWM thấp, triệt tiêu deadzone
     if (duty > 0) {
-      TIM4->CCR3 = pulse; // PB8 = PWM
-      TIM4->CCR4 = 0;     // PB9 = 0
+      TIM4->CCR3 = pulse_full; // PB8 = HIGH
+      TIM4->CCR4 = pulse_inv;  // PB9 = Inverted PWM
     } else {
-      TIM4->CCR3 = 0;     // PB8 = 0
-      TIM4->CCR4 = pulse; // PB9 = PWM
+      TIM4->CCR3 = pulse_inv;  // PB8 = Inverted PWM
+      TIM4->CCR4 = pulse_full; // PB9 = HIGH
     }
   }
 
@@ -125,13 +137,16 @@ class Motor {
       return;
     }
     float abs_d = std::clamp(std::abs(duty), (float)MOT_DUTY_MIN / 1000.0f, (float)MOT_DUTY_MAX / 1000.0f);
-    uint32_t pulse = (uint32_t)((TIM4->ARR + 1) * abs_d);
+    uint32_t pulse_inv = (uint32_t)((TIM4->ARR + 1) * (1.0f - abs_d));
+    uint32_t pulse_full = TIM4->ARR + 1;
+
+    // Chế độ Slow Decay (Brake Mode chuẩn Kerise): Giữ 1 chân HIGH, chân còn lại băm PWM đảo
     if (duty > 0) {
-      TIM4->CCR1 = pulse; // PB6 = PWM
-      TIM4->CCR2 = 0;     // PB7 = 0
+      TIM4->CCR1 = pulse_full; // PB6 = HIGH
+      TIM4->CCR2 = pulse_inv;  // PB7 = Inverted PWM
     } else {
-      TIM4->CCR1 = 0;     // PB6 = 0
-      TIM4->CCR2 = pulse; // PB7 = PWM
+      TIM4->CCR1 = pulse_inv;  // PB6 = Inverted PWM
+      TIM4->CCR2 = pulse_full; // PB7 = HIGH
     }
   }
 };

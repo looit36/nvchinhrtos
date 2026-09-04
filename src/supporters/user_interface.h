@@ -30,7 +30,7 @@ class UserInterface {
     bool prev_button_state = false;
 
     while (1) {
-      vTaskDelay(pdMS_TO_TICKS(15));
+      vTaskDelay(pdMS_TO_TICKS(10));
 
       // 1. KIỂM TRA NÚT BẤM PB1 (Tích cực mức CAO / HIGH khi nhấn)
       bool btn_now = (digitalRead(hw->btn->get_pin()) == HIGH);
@@ -73,7 +73,7 @@ class UserInterface {
             // Lệnh chuỗi hoàn chỉnh (MAP:..., X..., S, M,...)
             if (serialBuffer.startsWith("MAP:") || serialBuffer.startsWith("map:")) {
               if (out_serial_cmd) *out_serial_cmd = serialBuffer;
-              LOGI("Received MAP string via Bluetooth!");
+              LOGI("Received MAP string via Bluetooth (%d chars)!", serialBuffer.length());
               hw->bz->play(hardware::Buzzer::CONFIRM);
               return 7; // Chế độ Web Map
             } else if (serialBuffer.startsWith("X") || serialBuffer.startsWith("x")) {
@@ -89,6 +89,11 @@ class UserInterface {
               LOGI("Selected Mode: [0] Search Run");
               hw->bz->play(hardware::Buzzer::CONFIRM);
               return 0;
+            } else if (serialBuffer.startsWith("SYSID") || serialBuffer.startsWith("sysid")) {
+              if (out_serial_cmd) *out_serial_cmd = serialBuffer;
+              LOGI("Received SYSID command: %s", serialBuffer.c_str());
+              hw->bz->play(hardware::Buzzer::CONFIRM);
+              return 8; // Chế độ SysID
             } else {
               // Nhập số chế độ (0 - 15) và ấn Enter
               int num = serialBuffer.toInt();
@@ -102,8 +107,8 @@ class UserInterface {
           }
         } else {
           serialBuffer += c;
-          // Nếu chỉ bấm 1 ký tự số duy nhất (0 đến 7) không cần Enter
-          if (serialBuffer.length() == 1 && serialBuffer[0] >= '0' && serialBuffer[0] <= '7') {
+          // Nếu chỉ bấm 1 ký tự số duy nhất (0 đến 8) không cần Enter
+          if (serialBuffer.length() == 1 && serialBuffer[0] >= '0' && serialBuffer[0] <= '8') {
             uint8_t selected = serialBuffer[0] - '0';
             serialBuffer = "";
             LOGI("Selected Mode: [%d]", selected);
@@ -156,6 +161,7 @@ class UserInterface {
       case 5: LOGI("-> [5] Slalom 90 Test"); break;
       case 6: LOGI("-> [6] Spin Turn 180 Test"); break;
       case 7: LOGI("-> [7] Waiting for Web Map (MAP:...)"); break;
+      case 8: LOGI("-> [8] System Identification (SysID)"); break;
       default: LOGI("-> [%d] Mode", m); break;
     }
   }
@@ -172,7 +178,9 @@ class UserInterface {
     BTSerial.println(" [5] Slalom 90 Curve Test");
     BTSerial.println(" [6] Spin Turn 180 Test");
     BTSerial.println(" [7] Receive Web Maze Map (MAP:...)");
+    BTSerial.println(" [8] System Identification (SysID)");
     BTSerial.println("----------------------------------------");
-    BTSerial.printf("Current: [%d]. Tap PB1 or Send (0-7/S/M/MAP):\r\n", cur);
+    BTSerial.printf("Current: [%d]. Tap PB1 or Send (0-8/S/M/MAP/SYSID):\r\n", cur);
+    BTSerial.println("Cmd: 'SYSID <dir> <duty> [ms]' (e.g. SYSID 0 0.2)");
   }
 };

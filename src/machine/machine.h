@@ -70,7 +70,7 @@ class Machine {
 
   void driveManually() {
     String serial_cmd = "";
-    int mode = sp->ui->waitForSelect(8, 0, &serial_cmd);
+    int mode = sp->ui->waitForSelect(9, 0, &serial_cmd);
 
     if (serial_cmd.length() > 0) {
       parse_serial_command(serial_cmd);
@@ -99,6 +99,9 @@ class Machine {
           break;
         case 7:
           receive_web_map_blocking();
+          break;
+        case 8:
+          run_sysid(0, 0.2f, 1000);
           break;
         default:
           LOGI("Selected mode %d. Ready.", mode);
@@ -157,10 +160,14 @@ class Machine {
   void fast_run() {
     LOGI(">>> MODE 1: FAST RUN <<<");
     if (last_web_map_path.empty()) {
-      LOGW("No fast path loaded! Setting default test path: sSs");
-      last_web_map_path = "sSs";
+      LOGW("No fast path loaded! Setting default test path: S");
+      last_web_map_path = "S";
     }
     LOGI("Path: %s", last_web_map_path.c_str());
+    LOGI("READY! Place robot at start position, then press PB1 or send ENTER via Bluetooth to RUN...");
+    // Xóa các ký tự \r\n thừa từ trước khi chờ xác nhận chạy
+    while (BTSerial.available()) BTSerial.read();
+
     if (!sp->ui->waitForCover()) return;
     vTaskDelay(pdMS_TO_TICKS(500));
     hw->mt->emergency_release();
@@ -271,16 +278,143 @@ class Machine {
     LOGI("Turn Finished. Final Yaw Angle: %.2f deg", (double)(hw->imu->get_angle() * 180.0f / PI));
   }
 
+  struct SysidSample {
+    float enc0;
+    float enc1;
+    float gyro_z;
+    float accel_y;
+    float angular_accel;
+    float u_tra;
+    float u_rot;
+    float vbat;
+  };
+
+  void run_sysid(int dir, float duty, int duration_ms = 1000) {
+    if (duty > 1.0f) duty /= 100.0f;
+    if (duty < 0.05f) duty = 0.05f;
+    if (duty > 0.80f) duty = 0.80f;
+    if (duration_ms < 200) duration_ms = 200;
+    if (duration_ms > 3000) duration_ms = 3000;
+
+    int sample_count = duration_ms; // 1 mẫu/ms @ 1kHz
+
+    LOGI("==========================================");
+    LOGI(">>> STARTING SYSTEM IDENTIFICATION (SysID) <<<");
+    LOGI("Mode: %s | Duty: %.2f (%.0f%%) | Duration: %d ms",
+         (dir == 1 ? "ROTATIONAL (SPIN)" : "TRANSLATIONAL (STRAIGHT)"),
+         (double)duty, (double)(duty * 100.0f), duration_ms);
+    LOGW("CAUTION: Lift wheels off table or place in clear area!");
+    LOGI("==========================================");
+
+    // Cấp phát bộ nhớ đệm mẫu trên HEAP (~32 KB)
+    SysidSample* log_buf = new (std::nothrow) SysidSample[sample_count];
+    if (!log_buf) {
+      LOGE("Out of memory: Failed to allocate SysID buffer (%d samples)!", sample_count);
+      hw->bz->play(hardware::Buzzer::ERROR);
+      return;
+    }
+
+    // 1. Dừng điều khiển vòng kín & reset cảm biến
+    sp->sc->disable();
+    hw->mt->drive(0, 0);
+    hw->mt->free();
+    hw->imu->reset_angle();
+    hw->enc->clear_offset();
+
+    // 2. Tiếng còi báo hiệu chuẩn bị chạy
+    hw->bz->play(hardware::Buzzer::SELECT);
+    vTaskDelay(pdMS_TO_TICKS(500));
+    hw->bz->play(hardware::Buzzer::CONFIRM);
+    vTaskDelay(pdMS_TO_TICKS(500));
+
+    float vbat_now = hardware::Hardware::getBatteryVoltage();
+
+    // 3. Cấp xung PWM bước thang và thu thập dữ liệu 1kHz
+    float u_l = (dir == 1) ? -duty : duty;
+    float u_r = duty;
+    float u_tra_val = (dir == 0) ? duty : 0.0f;
+    float u_rot_val = (dir == 1) ? duty : 0.0f;
+
+    hw->mt->drive(u_l, u_r);
+
+    for (int i = 0; i < sample_count; i++) {
+      sp->sc->sampling_sync();
+
+      log_buf[i].enc0 = hw->enc->get_position(0); // Quãng đường mm (chuẩn Kerise)
+      log_buf[i].enc1 = hw->enc->get_position(1); // Quãng đường mm (chuẩn Kerise)
+      log_buf[i].gyro_z = hw->imu->get_gyro();
+      log_buf[i].accel_y = hw->imu->get_accel();
+      log_buf[i].angular_accel = hw->imu->get_angular_accel();
+      log_buf[i].u_tra = u_tra_val;
+      log_buf[i].u_rot = u_rot_val;
+      log_buf[i].vbat = hw->getBatteryVoltage(); // Đọc trực tiếp từ bộ đệm ADC1 DMA (<0.1us, 1000Hz liên tục)
+    }
+
+    // 4. Ngắt motor ngay sau khi đủ số mẫu
+    hw->mt->drive(0, 0);
+    hw->mt->free();
+    hw->bz->play(hardware::Buzzer::COMPLETE);
+    vTaskDelay(pdMS_TO_TICKS(200));
+
+    LOGI("SysID finished! Streaming %d samples in Teleplot format...", sample_count);
+
+    // 5. In dữ liệu dạng Teleplot stream cho VS Code Teleplot Extension
+    // Điều tiết tốc độ truyền phù hợp với Baudrate 115200 (~11.5 bytes/ms)
+    // Mỗi mẫu ~130-140 bytes -> cần delay ~12ms để buffer UART không bị tràn / rớt ký tự
+    for (int i = 0; i < sample_count; i++) {
+      BTSerial.printf(">enc0:%.2f\n>enc1:%.2f\n>gyro_z:%.4f\n>accel_y:%.2f\n>angular_accel:%.2f\n>u_tra:%.3f\n>u_rot:%.3f\n>vbat:%.2f\n",
+                      (double)log_buf[i].enc0,
+                      (double)log_buf[i].enc1,
+                      (double)log_buf[i].gyro_z,
+                      (double)log_buf[i].accel_y,
+                      (double)log_buf[i].angular_accel,
+                      (double)log_buf[i].u_tra,
+                      (double)log_buf[i].u_rot,
+                      (double)log_buf[i].vbat);
+
+      // In thêm vận tốc ước lượng để hiển thị trực tiếp đồ thị bứt tốc trên Teleplot
+      if (i > 0) {
+        float d_tra = ((log_buf[i].enc0 - log_buf[i - 1].enc0) + (log_buf[i].enc1 - log_buf[i - 1].enc1)) * 0.5f;
+        float d_rot = ((log_buf[i].enc1 - log_buf[i - 1].enc1) - (log_buf[i].enc0 - log_buf[i - 1].enc0)) * 0.5f;
+        float v_tra = d_tra / 0.001f;
+        float w_rot = d_rot / 0.001f / model::RotationRadius;
+        BTSerial.printf(">v_tra:%.1f\n>w_rot:%.2f\n", (double)v_tra, (double)w_rot);
+      }
+
+      // Delay 12ms mỗi mẫu đảm bảo Bluetooth 115200 truyền hết sạch 100% không mất 1 byte nào
+      vTaskDelay(pdMS_TO_TICKS(12));
+    }
+
+    LOGI(">>> SysID Teleplot Stream Finished <<<");
+
+    delete[] log_buf;
+  }
+
   void receive_web_map_blocking() {
     LOGI(">>> MODE 7: WAITING FOR WEB MAZE DESIGNER MAP (MAP:...) <<<");
     LOGI("Paste MAP:... string now or press PB1 to cancel.");
+
+    // Dọn sạch các ký tự \r, \n hoặc khoảng trắng dư thừa từ trước
+    vTaskDelay(pdMS_TO_TICKS(20));
+    while (BTSerial.available()) {
+      char peekChar = BTSerial.peek();
+      if (peekChar == '\r' || peekChar == '\n' || peekChar == ' ') {
+        BTSerial.read();
+      } else {
+        break;
+      }
+    }
+
     String mapBuf = "";
     while (1) {
-      vTaskDelay(pdMS_TO_TICKS(15));
+      vTaskDelay(pdMS_TO_TICKS(5));
+
       if (digitalRead(hw->btn->get_pin()) == HIGH) {
+        LOGI("Mode 7 cancelled by button.");
         while (digitalRead(hw->btn->get_pin()) == HIGH) vTaskDelay(pdMS_TO_TICKS(20));
         return;
       }
+
       while (BTSerial.available()) {
         char c = BTSerial.read();
         if (c == '\r' || c == '\n') {
@@ -299,75 +433,106 @@ class Machine {
   void parse_serial_command(const String& cmdStr) {
     if (cmdStr.startsWith("MAP:") || cmdStr.startsWith("map:")) {
       String mapHex = cmdStr.substring(4);
-      if (mapHex.length() >= 260) {
-        int startX = (mapHex.charAt(0) >= 'A') ? (mapHex.charAt(0) - 'A' + 10) : (mapHex.charAt(0) - '0');
-        int startY = (mapHex.charAt(1) >= 'A') ? (mapHex.charAt(1) - 'A' + 10) : (mapHex.charAt(1) - '0');
-        int goalX  = (mapHex.charAt(2) >= 'A') ? (mapHex.charAt(2) - 'A' + 10) : (mapHex.charAt(2) - '0');
-        int goalY  = (mapHex.charAt(3) >= 'A') ? (mapHex.charAt(3) - 'A' + 10) : (mapHex.charAt(3) - '0');
+      mapHex.trim();
+      LOGI("Received MAP data length: %d chars", mapHex.length());
 
-        MazeLib::Positions goals;
-        goals.push_back(MazeLib::Position(goalX, goalY));
+      if (mapHex.length() < 260) {
+        LOGE("MAP hex string too short! Expected >= 260, got: %d", mapHex.length());
+        LOGE("Please re-send MAP string from Web Maze Designer.");
+        hw->bz->play(hardware::Buzzer::ERROR);
+        return;
+      }
 
-        MazeLib::Position currentPos(startX, startY);
-        MazeLib::Maze maze(goals, currentPos);
-        maze.reset();
+      int startX = (mapHex.charAt(0) >= 'A') ? (mapHex.charAt(0) - 'A' + 10) : (mapHex.charAt(0) - '0');
+      int startY = (mapHex.charAt(1) >= 'A') ? (mapHex.charAt(1) - 'A' + 10) : (mapHex.charAt(1) - '0');
+      int goalX  = (mapHex.charAt(2) >= 'A') ? (mapHex.charAt(2) - 'A' + 10) : (mapHex.charAt(2) - '0');
+      int goalY  = (mapHex.charAt(3) >= 'A') ? (mapHex.charAt(3) - 'A' + 10) : (mapHex.charAt(3) - '0');
+      LOGI("Maze Config: Start(%d, %d) -> Goal(%d, %d)", startX, startY, goalX, goalY);
 
-        int idx = 4;
-        for (int x = 0; x < 16; x++) {
-          for (int y = 0; y < 16; y++) {
-            char c = mapHex.charAt(idx++);
-            uint8_t val = 0;
-            if (c >= '0' && c <= '9') val = c - '0';
-            else if (c >= 'A' && c <= 'F') val = c - 'A' + 10;
+      MazeLib::Positions goals;
+      goals.push_back(MazeLib::Position(goalX, goalY));
 
-            bool hasE = (val & 1);
-            bool hasN = (val & 2);
-            bool hasW = (val & 4);
-            bool hasS = (val & 8);
+      MazeLib::Position currentPos(startX, startY);
 
-            maze.updateWall(MazeLib::Position(x, y), MazeLib::Direction::East, hasE, false);
-            maze.updateWall(MazeLib::Position(x, y), MazeLib::Direction::North, hasN, false);
-            maze.updateWall(MazeLib::Position(x, y), MazeLib::Direction::West, hasW, false);
-            maze.updateWall(MazeLib::Position(x, y), MazeLib::Direction::South, hasS, false);
+      // Cấp phát Maze và SearchAlgorithm trên HEAP (tránh tràn stack 8KB của FreeRTOS task!)
+      MazeLib::Maze* maze = new (std::nothrow) MazeLib::Maze(goals, currentPos);
+      if (!maze) {
+        LOGE("Out of memory: Failed to allocate Maze!");
+        hw->bz->play(hardware::Buzzer::ERROR);
+        return;
+      }
+      maze->reset();
 
-            maze.setKnown(MazeLib::Position(x, y), MazeLib::Direction::East, true);
-            maze.setKnown(MazeLib::Position(x, y), MazeLib::Direction::North, true);
-            maze.setKnown(MazeLib::Position(x, y), MazeLib::Direction::West, true);
-            maze.setKnown(MazeLib::Position(x, y), MazeLib::Direction::South, true);
+      int idx = 4;
+      for (int x = 0; x < 16; x++) {
+        for (int y = 0; y < 16; y++) {
+          char c = mapHex.charAt(idx++);
+          uint8_t val = 0;
+          if (c >= '0' && c <= '9') val = c - '0';
+          else if (c >= 'A' && c <= 'F') val = c - 'A' + 10;
+          else if (c >= 'a' && c <= 'f') val = c - 'a' + 10;
+
+          bool hasE = (val & 1);
+          bool hasN = (val & 2);
+          bool hasW = (val & 4);
+          bool hasS = (val & 8);
+
+          maze->updateWall(MazeLib::Position(x, y), MazeLib::Direction::East, hasE, false);
+          maze->updateWall(MazeLib::Position(x, y), MazeLib::Direction::North, hasN, false);
+          maze->updateWall(MazeLib::Position(x, y), MazeLib::Direction::West, hasW, false);
+          maze->updateWall(MazeLib::Position(x, y), MazeLib::Direction::South, hasS, false);
+
+          maze->setKnown(MazeLib::Position(x, y), MazeLib::Direction::East, true);
+          maze->setKnown(MazeLib::Position(x, y), MazeLib::Direction::North, true);
+          maze->setKnown(MazeLib::Position(x, y), MazeLib::Direction::West, true);
+          maze->setKnown(MazeLib::Position(x, y), MazeLib::Direction::South, true);
+        }
+      }
+
+      maze->updateWall(currentPos, MazeLib::Direction::East, true, true);
+      maze->updateWall(currentPos, MazeLib::Direction::West, true, true);
+      maze->updateWall(currentPos, MazeLib::Direction::South, true, true);
+
+      MazeLib::SearchAlgorithm* searcher = new (std::nothrow) MazeLib::SearchAlgorithm(*maze);
+      if (!searcher) {
+        LOGE("Out of memory: Failed to allocate SearchAlgorithm!");
+        delete maze;
+        hw->bz->play(hardware::Buzzer::ERROR);
+        return;
+      }
+
+      MazeLib::Directions shortestPath;
+      bool success = searcher->calcShortestDirections(shortestPath, true);
+
+      if (success) {
+        std::string keriseStr = "";
+        if (!shortestPath.empty()) {
+          MazeLib::Direction robotDir = shortestPath[0];
+          for (size_t i = 1; i < shortestPath.size(); ++i) {
+            MazeLib::Direction nextDir = shortestPath[i];
+            int diff = (nextDir - robotDir + 8) % 8;
+            if (diff == 0) keriseStr += "S";
+            else if (diff == 6) keriseStr += "R";
+            else if (diff == 2) keriseStr += "L";
+            else if (diff == 4) keriseStr += "B";
+            robotDir = nextDir;
           }
         }
+        last_web_map_path = keriseStr;
+        LOGI("Shortest Path Generated: %s (Steps: %d)", last_web_map_path.c_str(), (int)shortestPath.size());
+        hw->bz->play(hardware::Buzzer::SUCCESSFUL);
 
-        maze.updateWall(currentPos, MazeLib::Direction::East, true, true);
-        maze.updateWall(currentPos, MazeLib::Direction::West, true, true);
-        maze.updateWall(currentPos, MazeLib::Direction::South, true, true);
+        // Giải phóng bộ nhớ heap sau khi tính toán xong
+        delete searcher;
+        delete maze;
 
-        MazeLib::SearchAlgorithm searcher(maze);
-        MazeLib::Directions shortestPath;
-        bool success = searcher.calcShortestDirections(shortestPath, true);
-
-        if (success) {
-          std::string keriseStr = "";
-          if (!shortestPath.empty()) {
-            MazeLib::Direction robotDir = shortestPath[0];
-            for (size_t i = 1; i < shortestPath.size(); ++i) {
-              MazeLib::Direction nextDir = shortestPath[i];
-              int diff = (nextDir - robotDir + 8) % 8;
-              if (diff == 0) keriseStr += "S";
-              else if (diff == 6) keriseStr += "R";
-              else if (diff == 2) keriseStr += "L";
-              else if (diff == 4) keriseStr += "B";
-              robotDir = nextDir;
-            }
-          }
-          last_web_map_path = "s" + keriseStr + "s";
-          LOGI("Shortest Path Generated: %s", last_web_map_path.c_str());
-          hw->bz->play(hardware::Buzzer::SUCCESSFUL);
-          // Cho phép chạy luôn fast run sau khi giải mê cung thành công
-          fast_run();
-        } else {
-          LOGW("Search failed: No valid path to goal!");
-          hw->bz->play(hardware::Buzzer::ERROR);
-        }
+        // Cho phép chạy luôn fast run sau khi giải mê cung thành công
+        fast_run();
+      } else {
+        LOGW("Search failed: No valid path to goal!");
+        hw->bz->play(hardware::Buzzer::ERROR);
+        delete searcher;
+        delete maze;
       }
     } else if (cmdStr.startsWith("X") || cmdStr.startsWith("x")) {
       last_web_map_path = cmdStr.substring(1).c_str();
@@ -376,6 +541,32 @@ class Machine {
       motor_direction_test();
     } else if (cmdStr.equalsIgnoreCase("S")) {
       search_run();
+    } else if (cmdStr.startsWith("SYSID") || cmdStr.startsWith("sysid")) {
+      int dir = 0;
+      float duty = 0.2f;
+      int duration = 1000;
+
+      int firstSpace = cmdStr.indexOf(' ');
+      if (firstSpace > 0) {
+        String remain = cmdStr.substring(firstSpace + 1);
+        remain.trim();
+        int secondSpace = remain.indexOf(' ');
+        if (secondSpace > 0) {
+          dir = remain.substring(0, secondSpace).toInt();
+          String remain2 = remain.substring(secondSpace + 1);
+          remain2.trim();
+          int thirdSpace = remain2.indexOf(' ');
+          if (thirdSpace > 0) {
+            duty = remain2.substring(0, thirdSpace).toFloat();
+            duration = remain2.substring(thirdSpace + 1).toInt();
+          } else {
+            duty = remain2.toFloat();
+          }
+        } else {
+          dir = remain.toInt();
+        }
+      }
+      run_sysid(dir, duty, duration);
     }
   }
 };

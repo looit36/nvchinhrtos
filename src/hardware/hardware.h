@@ -15,6 +15,7 @@
 #include "hardware/motor.h"
 #include "hardware/reflector.h"
 #include "hardware/tof.h"
+#include "hardware/battery.h"
 #include "config/model.h"
 #include "config/io_mapping.h"
 #include "app_log.h"
@@ -35,6 +36,7 @@ class Hardware {
   Encoder* enc = nullptr;
   Reflector* rfl = nullptr;
   ToF* tof = nullptr;
+  Battery* bat = nullptr;
 
  public:
   Hardware() {}
@@ -53,9 +55,9 @@ class Hardware {
     btn = new Button();
     btn->init(BUTTON_PIN);
 
-    // 3. Khởi tạo Pin ADC1 đọc điện áp Pin
-    analogReadResolution(12);
-    pinMode(BAT_VOL_PIN, INPUT_ANALOG);
+    // 3. Khởi tạo ADC1 + DMA2 Circular Mode đọc điện áp Pin
+    bat = new Battery();
+    bat->init();
     batteryCheck();
 
     // 4. Khởi tạo Motor (TIM4 PWM @ 100kHz)
@@ -91,15 +93,7 @@ class Hardware {
   }
 
   static float getBatteryVoltage() {
-    analogReadResolution(12);
-    uint32_t sum = 0;
-    for (int i = 0; i < 8; i++) {
-      sum += analogRead(BAT_VOL_PIN);
-      delayMicroseconds(20);
-    }
-    float raw_avg = (float)sum / 8.0f;
-    float v = raw_avg * model::BatteryMultiplier;
-    return (v > 1.0f && v < 15.0f) ? v : 7.4f;
+    return Battery::get_voltage();
   }
 
   bool batteryCheck() {
