@@ -39,7 +39,6 @@ const float MAX_MOTOR_VOLTS = 7.7f;
 #define MOT_DUTY_MIN 30       // Duty tối thiểu 3.0% (trên thang 1000)
 #define MOT_DUTY_MAX 950      // Duty tối đa 95.0% (trên thang 1000)
 
-
 // ==========================================
 // ENCODER PINS (STM32 Hardware Timer Encoder)
 // Left:  TIM3_CH1 (PB4), TIM3_CH2 (PB5)
@@ -60,7 +59,7 @@ const float COUNTS_PER_REV =
     4096.0f; // 1024 PPR * 4X Hardware Timer Decode = 4096 ticks/vòng motor
 const float GEAR_RATIO =
     1; // Tỷ số truyền: 1 vòng motor = 1 vòng bánh xe (encoder gắn trên bánh xe)
-const float MOUSE_RADIUS = 38.7619f; // mm (half of wheel track)
+const float MOUSE_RADIUS = 34.0f; // mm (half of wheel track)
 
 const float MM_PER_COUNT =
     (PI * WHEEL_DIAMETER) / (COUNTS_PER_REV * GEAR_RATIO);
@@ -86,12 +85,13 @@ const float LOOP_INTERVAL = (1.0 / LOOP_FREQUENCY);
 // MOTOR MODEL (System Identification)
 // ==========================================
 // Translation
-const float FWD_KM = 447.80308; // mm/s/Volt (motor gain)
-const float FWD_TM = 0.53757;   // s (motor time constant)
+const float FWD_KM = 1205.0f; // mm/s/Volt (motor gain)
+const float FWD_TM = 0.240f;  // s (motor time constant)
 // Rotation (Cập nhật từ Teleplot Log thực tế trên mặt sàn)
-const float ROT_KM_DEG = 105.0f; // deg/s/Volt (Hệ số tải thực tế trên mặt sàn)
-const float ROT_KM = ROT_KM_DEG * PI / 180.0f; // rad/s/Volt (~1.83 rad/s/Volt)
-const float ROT_TM = 0.29213f;                 // s
+// const float ROT_KM_DEG = 105.0f; // deg/s/Volt (Hệ số tải thực tế trên mặt
+// sàn)
+const float ROT_KM = 7.54f;  // rad/s/Volt (~1.83 rad/s/Volt)
+const float ROT_TM = 0.130f; // s
 
 // ==========================================
 // FEEDFORWARD GAINS
@@ -104,15 +104,15 @@ const float ACC_FF = (FWD_TM / FWD_KM);     // Acceleration feedforward
 // TRANSLATION PI (Pole-Zero Cancellation)
 // ==========================================
 // Bandwidth ~20 rad/s. Ki = 20 / FWD_KM = 0.045. Kp = FWD_TM * Ki = 0.011
-const float FWD_KP = 0.024f; // Proportional on velocity error
-const float FWD_KI = 0.045f; // Integral on velocity error
+const float FWD_KP = 0.0135f; // Proportional on velocity error
+const float FWD_KI = 0.403f;  // Integral on velocity error
 
 // ==========================================
 // ROTATION PI (Pole-Zero Cancellation)
 // ==========================================
 // Bandwidth ~25 rad/s. Ki = 25 / ROT_KM = 13.6. Kp = ROT_TM * Ki = 3.97
-const float ROT_KP = 3.0f; // Proportional on angular velocity error
-const float ROT_KI = 6.0f; // Integral on angular velocity error
+const float ROT_KP = 0.971f; // Proportional on angular velocity error
+const float ROT_KI = 27.6f;  // Integral on angular velocity error
 
 // ==========================================
 // SPIN TURN DYNAMICS (rad-based)
@@ -142,12 +142,14 @@ const float VELOCITY_FILTER_ALPHA_ROT = 1.0f;
 // (FULL_CELL=300: 0.60 m/s → 3.2 m/s^2; 0.50 m/s → 2.2 m/s^2)
 // ==========================================
 const float METRIC_SEARCH_SPEED = 0.33f; // m/s (search velocity)
-const float METRIC_FAST_SPEED = 3.0f;    // m/s (fast run, đoạn thẳng)
-const float METRIC_SLALOM_SPEED = 1.2f;  // m/s (vận tốc THỰC khi ôm cua)
-const float METRIC_TURN_SPEED = METRIC_SLALOM_SPEED; // m/s (slalom turn velocity)
-const float METRIC_ACCEL = 3.6f;         // m/s^2 (search acceleration)
-const float METRIC_FAST_ACCEL = 10.0f;   // m/s^2 (fast run acceleration)
-const float METRIC_JERK = 240.0f;        // m/s^3 (jerk)
+const float METRIC_FAST_SPEED = 4.0f;    // m/s (fast run, đoạn thẳng)
+const float METRIC_SLALOM_SPEED = 1.3f; // m/s (vận tốc THỰC khi ôm cua) - tăng
+                                        // từ 1.3 để cho phép vận tốc cao hơn
+const float METRIC_TURN_SPEED =
+    METRIC_SLALOM_SPEED;               // m/s (slalom turn velocity)
+const float METRIC_ACCEL = 3.6f;       // m/s^2 (search acceleration)
+const float METRIC_FAST_ACCEL = 15.0f; // m/s^2 (fast run acceleration)
+const float METRIC_JERK = 240.0f;      // m/s^3 (jerk)
 
 // ==========================================
 // IMU (BMI160 via SPI2)
