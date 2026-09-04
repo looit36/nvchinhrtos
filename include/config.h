@@ -142,14 +142,14 @@ const float VELOCITY_FILTER_ALPHA_ROT = 1.0f;
 // (FULL_CELL=300: 0.60 m/s → 3.2 m/s^2; 0.50 m/s → 2.2 m/s^2)
 // ==========================================
 const float METRIC_SEARCH_SPEED = 0.33f; // m/s (search velocity)
-const float METRIC_FAST_SPEED = 4.0f;    // m/s (fast run, đoạn thẳng)
+const float METRIC_FAST_SPEED = 5.0f;    // m/s (fast run, đoạn thẳng)
 const float METRIC_SLALOM_SPEED = 1.3f; // m/s (vận tốc THỰC khi ôm cua) - tăng
                                         // từ 1.3 để cho phép vận tốc cao hơn
 const float METRIC_TURN_SPEED =
     METRIC_SLALOM_SPEED;               // m/s (slalom turn velocity)
 const float METRIC_ACCEL = 3.6f;       // m/s^2 (search acceleration)
-const float METRIC_FAST_ACCEL = 15.0f; // m/s^2 (fast run acceleration)
-const float METRIC_JERK = 240.0f;      // m/s^3 (jerk)
+const float METRIC_FAST_ACCEL = 10.0f; // m/s^2 (fast run acceleration)
+const float METRIC_JERK = 240.0f;     // m/s^3 (jerk)
 
 // ==========================================
 // IMU (BMI160 via SPI2)
