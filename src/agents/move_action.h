@@ -14,8 +14,9 @@
 
 #include <MazeLib/RobotBase.h>  //< for RobotBase::SearchAction
 #include <ctrl/accel_designer.h>
-#include <ctrl/slalom.h>
-#include <ctrl/straight.h>
+#include <ctrl/slalom/slalom.h>
+#include <ctrl/slalom/trajectory.h>
+#include <ctrl/straight/trajectory.h>
 #include <FreeRTOS.h>
 #include <task.h>
 #include <freertospp/mutex.h>

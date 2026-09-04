@@ -6,7 +6,8 @@
  */
 #pragma once
 
-#include <ctrl/slalom.h>
+#include <ctrl/slalom/slalom.h>
+#include <ctrl/slalom/trajectory.h>
 #include <array>
 #include <cmath>
 #include "config/model.h"
