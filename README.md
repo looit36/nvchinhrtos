@@ -1,19 +1,17 @@
 # MicroMouse STM32 FreeRTOS
 
-Dự án firmware điều khiển robot giải mê cung (**MicroMouse**) tốc độ cao, xây dựng trên vi điều khiển **STM32F411CEU6**, sử dụng **FreeRTOS** và kiến trúc điều khiển chuyển động tiên tiến (quỹ đạo mượt mà, rẽ Slalom, thuật toán tìm đường tối ưu).
+Dự án firmware điều khiển robot giải mê cung (**MicroMouse**) tốc độ cao, xây dựng trên vi điều khiển **STM32F411CEU6**, sử dụng **FreeRTOS**.
 
 ---
 
-## Tính Năng Nổi Bật
-
 - **Đa nhiệm thời gian thực (FreeRTOS):**
   - **Vòng lặp điều khiển 1 kHz (Prio 4):** Đọc cảm biến, ước lượng trạng thái (Odometry + Gyro fusion), bộ điều khiển vị trí/vận tốc góc PID + Feedforward.
-  - **MoveAction Task:** Sinh quỹ đạo chuyển động mượt mà (AccelDesigner) cho các thao tác đi thẳng, quay tại chỗ (Spin Turn) và ôm cua mượt không dừng (Slalom Turn).
-  - **Drive Task (Prio 2):** Điều phối trạng thái máy (Machine State Machine), khám phá mê cung và chạy tối ưu.
+  - **MoveAction Task:** Sinh quỹ đạo chuyển động (AccelDesigner) cho các thao tác đi thẳng, quay tại chỗ và slalom turn.
+  - **Drive Task (Prio 2):** Machine state machine, khám phá mê cung và chạy tối ưu.
   - **Telemetry Task (100 Hz, Prio 1):** Xuất dữ liệu thời gian thực ra công cụ **Teleplot** qua Bluetooth.
 - **Thuật toán mê cung (MazeLib):**
   - Khám phá mê cung với thuật toán **Flood-Fill / Adachi**.
-  - Tối ưu đường chạy tốc độ cao (**Fast Run**) với các đoạn cua Slalom 90°, 180° và đường chéo (Diagonal).
+  - Tối ưu fast run với các đoạn cua Slalom 90°, 180° và diagonal.
 - **Giao diện & Tiện ích:**
   - Chọn chế độ linh hoạt bằng 1 nút bấm (Button) và đèn LED chỉ thị.
   - Tích hợp công cụ trực quan [maze_designer.html](maze_designer.html) thiết kế mê cung trên trình duyệt và nạp bản đồ trực tiếp qua Bluetooth UART.
@@ -58,7 +56,7 @@ Dự án firmware điều khiển robot giải mê cung (**MicroMouse**) tốc �
 
 ---
 
-## Danh Sách Chế Độ Hoạt Động (Operating Modes)
+## Danh Sách Chế Độ Hoạt Động
 
 Khi khởi động, robot ở trạng thái chờ chọn chế độ (nhấn giữ nút để tăng mode, nhả để xác nhận):
 
