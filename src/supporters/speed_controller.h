@@ -155,7 +155,7 @@ class SpeedController {
 
   void update_estimator() {
     for (int i = 0; i < 2; i++)
-      enc_v.wheel[i] = (wheel_position[i][0] - wheel_position[i][1]) / Ts;
+      enc_v.wheel[i] = (wheel_position[i][0] - wheel_position[i][3]) / (3.0f * Ts);
     enc_v.wheel2pole();
 
     const ctrl::Polar v_low = ctrl::Polar(enc_v.tra, hw->imu->get_gyro());

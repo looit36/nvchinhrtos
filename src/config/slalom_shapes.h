@@ -30,56 +30,69 @@ inline ctrl::slalom::Shape get_shape(ShapeIndex idx) {
   const float K = field::SegWidthFull / 90.0f;
   const float v_scale = std::sqrt(K); // Giữ gia tốc hướng tâm an toàn: a_lat = v^2 / R
 
+  // Khi chiều dài tỉ lệ theo K và vận tốc dài tỉ lệ theo v_scale = sqrt(K):
+  // R ~ K, v ~ sqrt(K)
+  // w = v/R ~ 1/sqrt(K)
+  // alpha = w/t ~ (1/sqrt(K)) / sqrt(K) = 1/K
+  // jerk = alpha/t ~ (1/K) / sqrt(K) = 1/(K * sqrt(K))
+  const float dth_scale = 1.0f / v_scale;
+  const float ddth_scale = 1.0f / K;
+  const float dddth_scale = 1.0f / (K * v_scale);
+
+  const float dddth_max = 3769.91f * dddth_scale;
+  const float ddth_max = 113.097f * ddth_scale;
+  const float dth_max = 9.42478f * dth_scale;
+
   switch (idx) {
     case S90:
       return ctrl::slalom::Shape(
           ctrl::Pose(45.0f * K, 45.0f * K, 1.5708f),
           ctrl::Pose(44.0f * K, 44.0f * K, 1.5708f),
           1.00004f * K, 1.0f * K,
-          265.749f * v_scale, 3769.91f, 113.097f, 9.42478f);
+          265.749f * v_scale, dddth_max, ddth_max, dth_max);
     case F45:
       return ctrl::slalom::Shape(
           ctrl::Pose(90.0f * K, 45.0f * K, 0.785398f),
           ctrl::Pose(72.4263f * K, 30.0f * K, 0.785398f),
           2.57365f * K, 21.2132f * K,
-          411.636f * v_scale, 3769.91f, 113.097f, 9.42478f);
+          411.636f * v_scale, dddth_max, ddth_max, dth_max);
     case F90:
       return ctrl::slalom::Shape(
           ctrl::Pose(90.0f * K, 90.0f * K, 1.5708f),
           ctrl::Pose(70.0f * K, 70.0f * K, 1.5708f),
           20.0f * K, 20.0f * K,
-          422.783f * v_scale, 3769.91f, 113.097f, 9.42478f);
+          422.783f * v_scale, dddth_max, ddth_max, dth_max);
     case F135:
       return ctrl::slalom::Shape(
           ctrl::Pose(45.0f * K, 90.0f * K, 2.35619f),
           ctrl::Pose(33.1373f * K, 80.0f * K, 2.35619f),
           21.8627f * K, 14.1421f * K,
-          353.609f * v_scale, 3769.91f, 113.097f, 9.42478f);
+          353.609f * v_scale, dddth_max, ddth_max, dth_max);
     case F180:
       return ctrl::slalom::Shape(
           ctrl::Pose(0.0f * K, 90.0f * K, 3.14159f),
           ctrl::Pose(0.0f * K, 90.0f * K, 3.14159f),
           24.0f * K, 24.0f * K,
-          412.228f * v_scale, 3769.91f, 113.097f, 9.42478f);
+          412.228f * v_scale, dddth_max, ddth_max, dth_max);
     case FV90:
       return ctrl::slalom::Shape(
           ctrl::Pose(63.6396f * K, 63.6396f * K, 1.5708f),
           ctrl::Pose(48.0f * K, 48.0f * K, 1.5708f),
           15.6396f * K, 15.6396f * K,
-          289.908f * v_scale, 3769.91f, 113.097f, 9.42478f);
+          289.908f * v_scale, dddth_max, ddth_max, dth_max);
     case FK90:
       return ctrl::slalom::Shape(
           ctrl::Pose(127.279f * K, 127.279f * K, 1.5708f),
           ctrl::Pose(125.0f * K, 125.0f * K, 1.5708f),
           2.27925f * K, 2.27922f * K,
-          754.969f * v_scale, 3769.91f, 113.097f, 9.42478f);
+          754.969f * v_scale, dddth_max, ddth_max, dth_max);
     case FS90:
     default:
       return ctrl::slalom::Shape(
           ctrl::Pose(45.0f * K, 45.0f * K, 1.5708f),
           ctrl::Pose(44.0f * K, 44.0f * K, 1.5708f),
           1.00004f * K, 1.0f * K,
-          265.749f * v_scale, 3769.91f, 113.097f, 9.42478f);
+          265.749f * v_scale, dddth_max, ddth_max, dth_max);
   }
 }
 

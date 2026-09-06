@@ -38,6 +38,8 @@ namespace model {
 static constexpr float RotationRadius =
     34.0f; // mm (khoảng cách tâm xe đến bánh)
 static constexpr float WheelDiameter = 26.0f; // mm (đường kính bánh xe thực tế)
+static constexpr float MotorTrim =
+    0.920f; // Tỉ lệ cân bằng 2 động cơ (Right / Left, từ SysID: 0.962)
 static constexpr float TailLength = 15.0f;   // mm (đuôi xe)
 static constexpr float CenterOffsetY = 0.0f; // mm
 static constexpr float turn_back_gain = 10.0f;
@@ -68,20 +70,20 @@ static constexpr float BatteryNominalVoltage = 7.4f;
 /* Motor Models & System Identification (mm/s/V & rad/s/V) */
 static constexpr ctrl::FeedbackController<ctrl::Polar>::Model
     SpeedControllerModel = {
-        .K1 = ctrl::Polar(1205.0f, 7.54f),
-        .T1 = ctrl::Polar(0.240f, 0.130f),
+        .K1 = ctrl::Polar(1180.0f, 7.54f),
+        .T1 = ctrl::Polar(0.256f, 0.130f),
 };
 
 static constexpr ctrl::FeedbackController<ctrl::Polar>::Gain
     SpeedControllerGain = {
-        .Kp = ctrl::Polar(0.0135f, 0.971f),
-        .Ki = ctrl::Polar(0.403f, 27.6f),
+        .Kp = ctrl::Polar(0.0078f, 0.550f),
+        .Ki = ctrl::Polar(0.136f, 10.0f),
         .Kd = ctrl::Polar(0.0f, 0.0f),
 };
 
-/* Velocity Estimation Filter (alpha = 0.95 for translation, 1.0 for gyro
- * rotation) */
-static constexpr ctrl::Polar velocity_filter_alpha = ctrl::Polar(0.95f, 1.0f);
+/* Velocity Estimation Filter (alpha = 1.0: 100% encoder & gyro, bypass noisy
+ * accelerometer) */
+static constexpr ctrl::Polar velocity_filter_alpha = ctrl::Polar(0.9f, 1.0f);
 
 /* Trajectory Tracking Gains */
 static constexpr ctrl::TrajectoryTracker::Gain TrajectoryTrackerGain = {

@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include "config/io_mapping.h"
+#include "config/model.h"
 
 namespace hardware {
 
@@ -130,7 +131,7 @@ class Motor {
   }
 
   void set_duty_right(float duty) {
-    duty *= MOTOR_R_DIR;
+    duty *= (MOTOR_R_DIR * model::MotorTrim);
     if (std::abs(duty) < 0.001f) {
       TIM4->CCR1 = 0;
       TIM4->CCR2 = 0;

@@ -24,7 +24,7 @@ class IMU {
   static constexpr float Ts = 1e-3f;
 
   IMU() : hspi2(IMU_SPI_MOSI, IMU_SPI_MISO, IMU_SPI_SCK),
-          bmi160Settings(1000000, MSBFIRST, SPI_MODE0) {}
+          bmi160Settings(5000000, MSBFIRST, SPI_MODE0) {}
 
   bool init() {
     pinMode(IMU_SPI_CS, OUTPUT);
@@ -74,10 +74,12 @@ class IMU {
     writeRegisterSPI(0x43, 0x00);
     delay(10);
 
-    // Cấu hình ODR: Accel 100Hz, Gyro 1000Hz OSR2
-    writeRegisterSPI(0x40, 0x28);
+    // Cấu hình ODR & Lọc thông thấp phần cứng (Hardware Low-Pass Filter):
+    // 0x40 (ACC_CONF): 0x0B -> ODR = 800Hz, OSR4 hardware LPF (cutoff 80Hz)
+    writeRegisterSPI(0x40, 0x0B);
     delay(10);
-    writeRegisterSPI(0x42, 0x1B);
+    // 0x42 (GYR_CONF): 0x0C -> ODR = 1600Hz, OSR4 hardware LPF (cutoff 127Hz)
+    writeRegisterSPI(0x42, 0x0C);
     delay(10);
 
     // Calibrate offset
@@ -232,7 +234,8 @@ class IMU {
     // Tính vận tốc góc (rad/s)
     float gz_dps = (raw_gyro_z - gyro_offset);
     prev_gyro_rad = gyro_rad;
-    gyro_rad = gz_dps * (PI / 180.0f);
+    const float raw_rad = gz_dps * (PI / 180.0f);
+    gyro_rad = 0.75f * raw_rad + 0.25f * prev_gyro_rad; // Lọc rung động cơ tần số cao
 
     // Tính gia tốc tịnh tiến phương dọc (mm/s^2)
     accel_mm = (raw_accel_x - accel_offset);
