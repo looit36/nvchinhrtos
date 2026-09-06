@@ -10,7 +10,6 @@ Dự án firmware điều khiển robot giải mê cung (MicroMouse) tốc độ
 - [VS Code](https://code.visualstudio.com/) + Tiện ích mở rộng [PlatformIO IDE](https://platformio.org/).
 - Mạch nạp **ST-Link V2** (kết nối chân SWD: SWDIO `PA13`, SWCLK `PA14`, GND, 3.3V).
 
-### Các Lệnh Thường Dùng
 ```powershell
 # Biên dịch dự án
 pio run
