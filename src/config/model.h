@@ -19,15 +19,14 @@ namespace field {
 
 /**
  * @brief Kích thước ô mê cung (mm).
- * Có thể điều chỉnh linh hoạt lúc runtime hoặc đổi giá trị mặc định.
- * Half-size = 90.0f, Full-size = 180.0f, Custom = 300.0f (mặc định)
+ * Full-size = 180.0f (18cm x 18cm)
  */
 extern float SegWidthFull;
 
 inline float getSegWidthFull() { return SegWidthFull; }
 inline float getSegWidthHalf() { return SegWidthFull / 2.0f; }
 inline float getSegWidthDiag() { return SegWidthFull * 1.414213562373f; }
-static constexpr float SegWidthDiag = 424.2640687f; // SegWidthFull * sqrt(2)
+static constexpr float SegWidthDiag = 254.5584412f; // SegWidthFull * sqrt(2)
 static constexpr float WallThickness = 12.0f;
 
 } // namespace field

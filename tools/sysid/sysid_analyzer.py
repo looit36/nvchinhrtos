@@ -48,7 +48,7 @@ except ImportError:
 # THÔNG SỐ VẬT LÝ ROBOT (từ model.h)
 # ==========================================
 WHEEL_DIAMETER_MM = 26.0
-ROTATION_RADIUS_MM = 38.7619
+ROTATION_RADIUS_MM = 34
 ENCODER_PPR = 1024.0
 COUNTS_PER_REV = 4096.0  # 4X decode
 GEAR_RATIO = 1.0

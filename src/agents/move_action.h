@@ -51,7 +51,7 @@ public:
     float j_max = 240'000;
     std::array<float, field::ShapeIndexMax> v_slalom;
     /* search run */
-    float v_search = 1000;
+    float v_search = 800;
     float v_unknown_accel = 600;
     /* fast run */
     float fan_duty = 0.4f;
@@ -67,8 +67,8 @@ public:
   public:
     RunParameter() {
       for (int i = 0; i < field::ShapeIndexMax; ++i)
-        // v_slalom[i] = field::shapes[i].v_ref;
-        v_slalom[i] = v_search;
+        v_slalom[i] = field::shapes[i].v_ref;
+      // v_slalom[i] = v_search;
     }
     void up(const int cnt = 1) {
       for (int i = 0; i < cnt; ++i) {
@@ -101,8 +101,10 @@ public:
     /* set default parameters */
     for (auto &vs : rp_search.v_slalom)
       vs = rp_search.v_search;
-    for (auto &vs : rp_fast.v_slalom)
-      vs = rp_search.v_search;
+    for (int i = 0; i < field::ShapeIndexMax; ++i)
+      rp_fast.v_slalom[i] = field::shapes[i].v_ref;
+    // for (auto &vs : rp_fast.v_slalom)
+    //   vs = rp_search.v_search;
     /* デフォルトは既知区間斜めを無効化 */
     rp_search.diag_enabled = false;
     /* start */
@@ -880,7 +882,7 @@ private:
     /* Bắt đầu chuyển động */
     LOGI("FastRun: motion started!");
     /* 壁に背中を確実につける */
-    hw->mt->drive(-0.25f, -0.25f);
+    // hw->mt->drive(-0.25f, -0.25f);
     vTaskDelay(pdMS_TO_TICKS(200));
     hw->mt->free();
     /* ファンを始動 */
